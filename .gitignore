@@ -1,0 +1,8 @@
+node_modules
+.next
+data/store.json
+coverage
+npm-debug.log*
+.env*
+dev.log
+dev.err.log
