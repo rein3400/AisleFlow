@@ -28,7 +28,7 @@ type D1DatabaseLike = {
 let writeQueue: Promise<unknown> = Promise.resolve();
 let sqlClient: postgres.Sql | null = null;
 let fileStoreFs: Promise<FileStoreFs> | null = null;
-let d1DatabaseCache: D1DatabaseLike | null | undefined;
+let d1DatabaseCache: D1DatabaseLike | null = null;
 
 function getDatabaseUrl() {
   return (
@@ -93,7 +93,7 @@ async function getStorePath() {
 }
 
 async function getD1Database() {
-  if (d1DatabaseCache !== undefined) {
+  if (d1DatabaseCache) {
     return d1DatabaseCache;
   }
 
@@ -131,8 +131,11 @@ async function getD1Database() {
     // Async mode is primarily for SSG/static contexts; ignore if unavailable.
   }
 
-  d1DatabaseCache = null;
-  return d1DatabaseCache;
+  return null;
+}
+
+function isCloudflareWorkerRuntime() {
+  return "WebSocketPair" in globalThis;
 }
 
 function pruneExpiredLocks<T extends { seatLocks: SeatLock[] }>(store: T) {
@@ -344,6 +347,11 @@ async function withD1StoreMutation<T>(db: D1DatabaseLike, mutate: (store: AppSto
 
 export async function readStore() {
   const d1Database = await getD1Database();
+
+  if (!d1Database && !isDatabaseStoreEnabled() && isCloudflareWorkerRuntime()) {
+    throw new Error("Binding D1 AISLEFLOW_DB tidak tersedia di runtime Cloudflare.");
+  }
+
   const rawStore = d1Database
     ? await readD1Store(d1Database)
     : isDatabaseStoreEnabled()
@@ -359,6 +367,10 @@ export async function withStoreMutation<T>(mutate: (store: AppStore) => Promise<
 
   if (d1Database) {
     return withD1StoreMutation(d1Database, mutate);
+  }
+
+  if (!isDatabaseStoreEnabled() && isCloudflareWorkerRuntime()) {
+    throw new Error("Binding D1 AISLEFLOW_DB tidak tersedia di runtime Cloudflare.");
   }
 
   if (isDatabaseStoreEnabled()) {
