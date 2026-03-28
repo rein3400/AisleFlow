@@ -14,8 +14,10 @@ Lalu buka `http://localhost:3000`.
 ## Storage
 
 - Tanpa environment database, app memakai file lokal `data/store.json`
+- Di Cloudflare Workers, app akan otomatis memakai binding D1 `AISLEFLOW_DB` bila tersedia
 - Jika `DATABASE_URL` atau `NETLIFY_DATABASE_URL` tersedia, app otomatis pindah ke Postgres
-- Mode database memakai transaksi row-lock pada tabel `app_state` untuk menjaga lock kursi dan booking final tetap atomik
+- Mode Postgres memakai row-lock pada tabel `app_state` untuk menjaga booking tetap atomik
+- Mode D1 memakai optimistic concurrency pada baris `app_state` agar update booking tetap aman saat ada request bersamaan
 
 ## Akun Awal
 
@@ -38,7 +40,17 @@ npm install
 npx wrangler login
 ```
 
-3. Simpan secret database Postgres:
+3. Pilih salah satu storage production:
+
+Opsi A, rekomendasi untuk Cloudflare native: buat D1 lalu bind sebagai `AISLEFLOW_DB`
+
+```bash
+npx wrangler d1 create aisleflow
+```
+
+Lalu masukkan `database_id` hasilnya ke `wrangler.jsonc` pada binding `AISLEFLOW_DB`.
+
+Opsi B, pakai Postgres eksternal:
 
 ```bash
 npx wrangler secret put DATABASE_URL
@@ -61,6 +73,7 @@ Catatan:
 - Karena app ini full-stack SSR, gunakan Cloudflare Workers, bukan static Pages deploy
 - Untuk local preview Cloudflare, copy `.dev.vars.example` menjadi `.dev.vars`
 - Tanpa database persistent, deployment serverless tidak aman untuk flow reservasi kursi dan anti double-booking
+- Jika `AISLEFLOW_DB` ada, app akan memprioritaskan D1 dibanding `DATABASE_URL`
 
 ## Cakupan v1
 

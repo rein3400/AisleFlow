@@ -11,6 +11,14 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // Setelah membuat D1, aktifkan binding ini dengan database_id milik Anda.
+  // "d1_databases": [
+  //   {
+  //     "binding": "AISLEFLOW_DB",
+  //     "database_name": "aisleflow",
+  //     "database_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  //   }
+  // ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
