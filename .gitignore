@@ -1,8 +1,11 @@
 node_modules
 .next
+.open-next
+.wrangler
 data/store.json
 coverage
 npm-debug.log*
 .env*
+.dev.vars*
 dev.log
 dev.err.log

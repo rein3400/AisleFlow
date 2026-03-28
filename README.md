@@ -22,15 +22,45 @@ Lalu buka `http://localhost:3000`.
 - Email: `superadmin@example.com`
 - Password: `superadmin123`
 
-## Deploy Netlify
+## Deploy Cloudflare Workers
 
-1. Buat site Netlify atau link ke site yang sudah ada
-2. Sediakan database Postgres/Neon dan isi `DATABASE_URL` atau `NETLIFY_DATABASE_URL`
-3. Set build command `npm run build`
-4. Set publish output `.next`
-5. Deploy repo ini sebagai Next.js app
+Project ini sudah disiapkan untuk deploy ke Cloudflare Workers memakai `@opennextjs/cloudflare`.
 
-Tanpa database persistent, deployment serverless tidak aman untuk flow reservasi kursi dan anti double-booking.
+1. Install dependency:
+
+```bash
+npm install
+```
+
+2. Login ke Cloudflare:
+
+```bash
+npx wrangler login
+```
+
+3. Simpan secret database Postgres:
+
+```bash
+npx wrangler secret put DATABASE_URL
+```
+
+4. Preview lokal di runtime Workers:
+
+```bash
+npm run preview
+```
+
+5. Deploy:
+
+```bash
+npm run deploy:cloudflare
+```
+
+Catatan:
+
+- Karena app ini full-stack SSR, gunakan Cloudflare Workers, bukan static Pages deploy
+- Untuk local preview Cloudflare, copy `.dev.vars.example` menjadi `.dev.vars`
+- Tanpa database persistent, deployment serverless tidak aman untuk flow reservasi kursi dan anti double-booking
 
 ## Cakupan v1
 
