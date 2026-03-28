@@ -2,6 +2,12 @@ import { getGuestTicket } from "@/lib/domain";
 
 export const dynamic = "force-dynamic";
 
+const jakartaDateTimeFormatter = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "Asia/Jakarta",
+  dateStyle: "short",
+  timeStyle: "medium",
+});
+
 interface TicketPageProps {
   params: Promise<{ token: string }>;
 }
@@ -53,7 +59,7 @@ export default async function GuestTicketPage({ params }: TicketPageProps) {
 
           <div className="stack" style={{ gap: 6 }}>
             <span className="muted">Waktu konfirmasi</span>
-            <strong>{new Date(ticket.booking.confirmedAt).toLocaleString("id-ID")}</strong>
+            <strong>{jakartaDateTimeFormatter.format(new Date(ticket.booking.confirmedAt))}</strong>
           </div>
         </div>
       </section>
