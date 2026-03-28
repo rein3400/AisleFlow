@@ -98,7 +98,7 @@ async function getD1Database() {
   }
 
   try {
-    const { env } = await getCloudflareContext({ async: true });
+    const { env } = getCloudflareContext();
     const binding = (env as Record<string, unknown>).AISLEFLOW_DB;
 
     if (
@@ -112,6 +112,23 @@ async function getD1Database() {
     }
   } catch {
     // Not running in a Cloudflare request context or binding not configured.
+  }
+
+  try {
+    const context = await getCloudflareContext({ async: true });
+    const binding = (context.env as Record<string, unknown>).AISLEFLOW_DB;
+
+    if (
+      binding &&
+      typeof binding === "object" &&
+      "prepare" in binding &&
+      typeof (binding as D1DatabaseLike).prepare === "function"
+    ) {
+      d1DatabaseCache = binding as D1DatabaseLike;
+      return d1DatabaseCache;
+    }
+  } catch {
+    // Async mode is primarily for SSG/static contexts; ignore if unavailable.
   }
 
   d1DatabaseCache = null;
