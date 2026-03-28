@@ -50,6 +50,12 @@ npx wrangler d1 create aisleflow
 
 Lalu masukkan `database_id` hasilnya ke `wrangler.jsonc` pada binding `AISLEFLOW_DB`.
 
+Setelah itu, inisialisasi schema D1:
+
+```bash
+npx wrangler d1 execute aisleflow --remote --file=./database/d1-schema.sql
+```
+
 Opsi B, pakai Postgres eksternal:
 
 ```bash
@@ -74,6 +80,7 @@ Catatan:
 - Untuk local preview Cloudflare, copy `.dev.vars.example` menjadi `.dev.vars`
 - Tanpa database persistent, deployment serverless tidak aman untuk flow reservasi kursi dan anti double-booking
 - Jika `AISLEFLOW_DB` ada, app akan memprioritaskan D1 dibanding `DATABASE_URL`
+- Untuk D1, schema tabel `app_state` harus dibuat sekali memakai file [database/d1-schema.sql](C:/Users/Gambit/Project/New%20folder/database/d1-schema.sql)
 
 ## Cakupan v1
 
