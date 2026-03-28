@@ -253,14 +253,11 @@ async function readDatabaseStore() {
 }
 
 async function ensureD1Store(db: D1DatabaseLike) {
-  await db.exec(`
-    create table if not exists app_state (
-      id integer primary key,
-      data text not null,
-      version integer not null default 1,
-      updated_at text not null
-    );
-  `);
+  await db
+    .prepare(
+      "create table if not exists app_state (id integer primary key, data text not null, version integer not null default 1, updated_at text not null)",
+    )
+    .run();
 
   const existingId = await db.prepare("select id from app_state where id = ?").bind(1).first<number>("id");
 
