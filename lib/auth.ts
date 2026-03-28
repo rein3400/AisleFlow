@@ -6,6 +6,7 @@ import type { PublicAdminUser } from "@/lib/types";
 import { decodeBase64Json, encodeBase64Json, signValue } from "@/lib/utils";
 
 const COOKIE_NAME = "wedding_admin_session";
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 12;
 
 function getSessionSecret() {
   return process.env.ADMIN_SESSION_SECRET ?? "local-dev-session-secret";
@@ -37,6 +38,20 @@ function parseAdminSessionToken(token: string) {
   } catch {
     return null;
   }
+}
+
+export function getAdminSessionCookieName() {
+  return COOKIE_NAME;
+}
+
+export function getAdminSessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: COOKIE_MAX_AGE_SECONDS,
+  };
 }
 
 export async function getCurrentAdminUser(): Promise<PublicAdminUser | null> {
@@ -77,13 +92,7 @@ export async function requireSuperadmin() {
 
 export async function writeAdminSessionCookie(userId: string) {
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, createAdminSessionToken(userId), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 12,
-  });
+  cookieStore.set(COOKIE_NAME, createAdminSessionToken(userId), getAdminSessionCookieOptions());
 }
 
 export async function clearAdminSessionCookie() {

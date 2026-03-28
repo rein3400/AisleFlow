@@ -1,4 +1,4 @@
-import { writeAdminSessionCookie } from "@/lib/auth";
+import { createAdminSessionToken, getAdminSessionCookieName, getAdminSessionCookieOptions } from "@/lib/auth";
 import { verifyAdminLogin } from "@/lib/domain";
 import { jsonError, jsonSuccess } from "@/lib/http";
 
@@ -22,11 +22,17 @@ export async function POST(request: Request) {
       return jsonError("Email atau password tidak cocok.", 401);
     }
 
-    await writeAdminSessionCookie(user.id);
-
-    return jsonSuccess({
+    const response = jsonSuccess({
       user,
     });
+
+    response.cookies.set(
+      getAdminSessionCookieName(),
+      createAdminSessionToken(user.id),
+      getAdminSessionCookieOptions(),
+    );
+
+    return response;
   } catch (error) {
     return jsonError(error, 400);
   }
