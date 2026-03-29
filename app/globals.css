@@ -494,15 +494,20 @@ img {
   background: rgba(159, 79, 52, 0.08);
 }
 
+.admin-builder-toolbar,
 .admin-toolbar,
 .admin-toolbar-meta,
 .admin-section-nav,
-.admin-card-actions {
+.admin-card-actions,
+.admin-builder-toggle-row,
+.admin-builder-tab-row,
+.admin-builder-status {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
 
+.admin-builder-toolbar,
 .admin-toolbar {
   align-items: center;
 }
@@ -510,6 +515,65 @@ img {
 .admin-toolbar-meta {
   justify-content: space-between;
   align-items: center;
+}
+
+.admin-builder-toolbar {
+  justify-content: space-between;
+}
+
+.admin-builder-status {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.admin-builder-chip-active {
+  background: rgba(159, 79, 52, 0.14);
+  border-color: rgba(159, 79, 52, 0.24);
+}
+
+.admin-builder-layout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
+  align-items: start;
+}
+
+.admin-builder-block-row {
+  align-items: flex-start;
+}
+
+.admin-builder-preview-surface {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 32%),
+    linear-gradient(180deg, rgba(255, 250, 244, 0.96), rgba(243, 233, 220, 0.88));
+}
+
+.admin-builder-preview-surface > * {
+  width: min(100%, 1040px);
+}
+
+.admin-builder-preview-surface.device-tablet > * {
+  width: min(100%, 840px);
+}
+
+.admin-builder-preview-surface.device-mobile > * {
+  width: min(100%, 430px);
+}
+
+.admin-builder-mobile-actions {
+  display: none;
+}
+
+.admin-builder-mobile-sheet {
+  width: min(100%, 760px);
+  max-height: min(88vh, 920px);
+  overflow-y: auto;
 }
 
 .admin-toolbar-input,
@@ -635,6 +699,22 @@ img {
   .admin-split-grid {
     grid-template-columns: 1fr;
   }
+
+  .admin-builder-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-builder-sidebar {
+    display: none;
+  }
+
+  .admin-builder-mobile-actions {
+    display: block;
+  }
+
+  .admin-builder-status {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 680px) {
@@ -666,6 +746,16 @@ img {
   .admin-toolbar-input,
   .admin-toolbar-select {
     flex-basis: 100%;
+  }
+
+  .admin-builder-preview-surface {
+    padding: 12px;
+  }
+
+  .admin-builder-preview-surface > *,
+  .admin-builder-preview-surface.device-tablet > *,
+  .admin-builder-preview-surface.device-mobile > * {
+    width: 100%;
   }
 
   .admin-guest-table {

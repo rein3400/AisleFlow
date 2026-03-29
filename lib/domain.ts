@@ -15,6 +15,11 @@ import type {
   SeatState,
   Session,
 } from "@/lib/types";
+import {
+  createDefaultInvitationConfig,
+  normalizeInvitationConfig,
+  type InvitationConfig,
+} from "@/lib/invitation-builder";
 import { readStore, withStoreMutation } from "@/lib/store";
 import {
   addMinutes,
@@ -114,6 +119,78 @@ function getThemeForEvent(store: AppStore, eventId: string): EventTheme {
     backgroundImageDataUrl: DEFAULT_THEME.backgroundImageDataUrl,
     createdAt,
     updatedAt: createdAt,
+  };
+}
+
+function buildDefaultInvitationConfigForEvent(event: Event, theme: EventTheme, updatedBy: string) {
+  return createDefaultInvitationConfig({
+    eventId: event.id,
+    updatedBy,
+    brideName: event.brideName,
+    groomName: event.groomName,
+    welcomeMessage: event.welcomeMessage,
+    primaryColor: theme.primaryColor,
+    secondaryColor: theme.secondaryColor,
+    heroImageDataUrl: theme.heroImageDataUrl,
+    backgroundImageDataUrl: theme.backgroundImageDataUrl,
+  });
+}
+
+function getInvitationConfigForEvent(store: AppStore, event: Event, updatedBy: string): InvitationConfig {
+  const theme = getThemeForEvent(store, event.id);
+  const existing = store.invitationConfigs.find((item) => item.eventId === event.id);
+
+  if (!existing) {
+    return buildDefaultInvitationConfigForEvent(event, theme, updatedBy);
+  }
+
+  return normalizeInvitationConfig(existing, {
+    eventId: event.id,
+    updatedBy,
+    brideName: event.brideName,
+    groomName: event.groomName,
+    welcomeMessage: event.welcomeMessage,
+    primaryColor: theme.primaryColor,
+    secondaryColor: theme.secondaryColor,
+    heroImageDataUrl: theme.heroImageDataUrl,
+    backgroundImageDataUrl: theme.backgroundImageDataUrl,
+  });
+}
+
+function createInvitationPreviewSnapshot(event: Event, sessions: Session[]) {
+  const previewSession =
+    sessions[0] ?? {
+      id: "session-preview",
+      eventId: event.id,
+      label: "Sesi Preview",
+      code: "S1",
+      serial: 1,
+      capacity: 6,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    };
+
+  const seatLabels = Array.from({ length: 6 }, (_, index) => `${previewSession.code}-${String(index + 1).padStart(3, "0")}`);
+
+  return {
+    guest: {
+      name: "Tamu Kehormatan",
+    },
+    session: previewSession,
+    seats: seatLabels.map((seatLabel, index) => ({
+      seatId: `preview-seat-${index + 1}`,
+      seatLabel,
+      seatNumber: index + 1,
+      status: index === 0 || index === 3 ? ("locked" as const) : index === 4 ? ("booked" as const) : ("available" as const),
+      occupantLabel: index === 3 || index === 4 ? "RS" : null,
+      selectedByGuest: index === 0,
+    })),
+    currentLockSeatId: "preview-seat-1",
+    booking: {
+      id: "preview-booking",
+      seatLabel: seatLabels[0],
+      confirmedAt: nowIso(),
+    },
   };
 }
 
@@ -376,6 +453,7 @@ function getGuestPortalSnapshotFromStore(store: AppStore, token: string) {
   assert(session.eventId === event.id, "Sesi tamu tidak valid.");
 
   const theme = getThemeForEvent(store, event.id);
+  const invitationConfig = getInvitationConfigForEvent(store, event, event.createdByUserId || "system");
   const booking = getGuestBooking(store, guest);
   const bookingSeat = booking ? requireSeat(store, booking.seatId) : null;
   const activeLock =
@@ -388,6 +466,7 @@ function getGuestPortalSnapshotFromStore(store: AppStore, token: string) {
     event,
     session,
     theme,
+    invitationConfig,
     booking,
     bookingSeat,
     currentLockSeat,
@@ -446,6 +525,7 @@ export async function getEventWorkspace(user: PublicAdminUser, eventId: string) 
   const store = await readStore();
   const event = assertEventAccess(store, user, eventId);
   const theme = getThemeForEvent(store, event.id);
+  const invitationConfig = getInvitationConfigForEvent(store, event, user.id);
   const sessions = store.sessions
     .filter((session) => session.eventId === event.id)
     .sort((left, right) => left.serial - right.serial);
@@ -461,6 +541,7 @@ export async function getEventWorkspace(user: PublicAdminUser, eventId: string) 
   return {
     event,
     theme,
+    invitationConfig,
     sessions,
     guests: guests.map((guest) => {
       const session = requireSession(store, guest.sessionId);
@@ -586,9 +667,11 @@ export async function createEvent(
       createdAt,
       updatedAt: createdAt,
     };
+    const invitationConfig = buildDefaultInvitationConfigForEvent(event, theme, user.id);
 
     store.events.push(event);
     store.themes.push(theme);
+    store.invitationConfigs.push(invitationConfig);
     store.sessions.push(session);
     store.seats.push(...createSeatsForSession(eventId, session, 1, session.capacity));
     store.users.push(eventAdmin);
@@ -714,6 +797,73 @@ export async function updateEventTheme(
 
     return {
       success: true,
+    };
+  });
+}
+
+export async function getInvitationBuilderWorkspace(user: PublicAdminUser, eventId: string) {
+  const store = await readStore();
+  const event = assertEventAccess(store, user, eventId);
+  const theme = getThemeForEvent(store, event.id);
+  const sessions = store.sessions
+    .filter((session) => session.eventId === event.id)
+    .sort((left, right) => left.serial - right.serial);
+  const invitationConfig = getInvitationConfigForEvent(store, event, user.id);
+  const preview = createInvitationPreviewSnapshot(event, sessions);
+
+  return {
+    event,
+    theme,
+    sessions,
+    invitationConfig,
+    preview,
+  };
+}
+
+export async function saveInvitationConfig(
+  user: PublicAdminUser,
+  eventId: string,
+  input: Partial<InvitationConfig> | Record<string, unknown>,
+) {
+  return withStoreMutation((store) => {
+    const event = assertEventAccess(store, user, eventId);
+    const theme = getThemeForEvent(store, event.id);
+    const normalized = normalizeInvitationConfig(input, {
+      eventId: event.id,
+      updatedBy: user.id,
+      brideName: event.brideName,
+      groomName: event.groomName,
+      welcomeMessage: event.welcomeMessage,
+      primaryColor: theme.primaryColor,
+      secondaryColor: theme.secondaryColor,
+      heroImageDataUrl: theme.heroImageDataUrl,
+      backgroundImageDataUrl: theme.backgroundImageDataUrl,
+    });
+    normalized.updatedAt = nowIso();
+    normalized.updatedBy = user.id;
+
+    const existingIndex = store.invitationConfigs.findIndex((item) => item.eventId === event.id);
+    if (existingIndex >= 0) {
+      store.invitationConfigs[existingIndex] = normalized;
+    } else {
+      store.invitationConfigs.push(normalized);
+    }
+
+    appendAuditLog(
+      store,
+      "admin",
+      user.id,
+      "invitation_config.updated",
+      {
+        eventId,
+        preset: normalized.globalStyle.preset,
+      },
+      eventId,
+    );
+
+    return {
+      success: true,
+      invitationConfig: normalized,
     };
   });
 }
@@ -1126,6 +1276,7 @@ export async function getGuestPortal(token: string) {
     event: snapshot.event,
     session: snapshot.session,
     theme: snapshot.theme,
+    invitationConfig: snapshot.invitationConfig,
     seats: snapshot.seats,
     currentLockSeatId: snapshot.currentLockSeat?.id ?? null,
     booking: snapshot.booking
@@ -1148,6 +1299,7 @@ export async function getGuestTicket(token: string) {
     event: snapshot.event,
     session: snapshot.session,
     theme: snapshot.theme,
+    invitationConfig: snapshot.invitationConfig,
     booking: snapshot.booking,
     bookingSeat: snapshot.bookingSeat,
   };

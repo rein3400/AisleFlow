@@ -1,3 +1,5 @@
+import type { InvitationConfig } from "@/lib/invitation-builder";
+
 export type AdminRole = "superadmin" | "event_admin";
 
 export type GuestInviteStatus = "pending" | "sent";
@@ -141,6 +143,7 @@ export interface AppStore {
   users: AdminUser[];
   events: Event[];
   themes: EventTheme[];
+  invitationConfigs: InvitationConfig[];
   sessions: Session[];
   seats: Seat[];
   guests: Guest[];

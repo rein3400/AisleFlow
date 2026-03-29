@@ -145,6 +145,15 @@ function pruneExpiredLocks<T extends { seatLocks: SeatLock[] }>(store: T) {
   };
 }
 
+function ensureStoreShape(store: AppStore): AppStore {
+  return {
+    ...store,
+    invitationConfigs: Array.isArray((store as Partial<AppStore>).invitationConfigs)
+      ? [...((store as Partial<AppStore>).invitationConfigs ?? [])]
+      : [],
+  };
+}
+
 function createInitialStore(): AppStore {
   const createdAt = nowIso();
   const tenantId = generateId("tenant");
@@ -174,6 +183,7 @@ function createInitialStore(): AppStore {
     ],
     events: [],
     themes: [],
+    invitationConfigs: [],
     sessions: [],
     seats: [],
     guests: [],
@@ -225,10 +235,10 @@ async function persistStore(store: AppStore) {
 
 function coerceStoreData(data: unknown) {
   if (typeof data === "string") {
-    return JSON.parse(data) as AppStore;
+    return ensureStoreShape(JSON.parse(data) as AppStore);
   }
 
-  return data as AppStore;
+  return ensureStoreShape(data as AppStore);
 }
 
 function toDatabaseJson(store: AppStore) {

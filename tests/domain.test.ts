@@ -11,13 +11,16 @@ import {
   createSession,
   getAdminUserById,
   getEventWorkspace,
+  getInvitationBuilderWorkspace,
   getGuestPortal,
+  getGuestTicket,
   importGuests,
   lockSeat,
   resetGuestBooking,
+  saveInvitationConfig,
   updateSession,
 } from "@/lib/domain";
-import { readStore } from "@/lib/store";
+import { readStore, withStoreMutation } from "@/lib/store";
 
 let tempDir = "";
 
@@ -217,5 +220,61 @@ describe("domain rules", () => {
 
     const refreshedWorkspace = await getEventWorkspace(superadmin, eventId);
     expect(refreshedWorkspace.guests.some((guest) => guest.name === "CSV Guest")).toBe(true);
+  });
+
+  it("seeds an invitation config when creating a new event", async () => {
+    const { eventId } = await bootstrapEvent();
+    const store = await readStore();
+
+    expect(store.invitationConfigs).toHaveLength(1);
+    expect(store.invitationConfigs[0]?.eventId).toBe(eventId);
+    expect(store.invitationConfigs[0]?.blocks.heroCover.enabled).toBe(true);
+  });
+
+  it("bootstraps a missing invitation config and persists builder edits", async () => {
+    const { superadmin, eventId } = await bootstrapEvent();
+
+    await withStoreMutation((store) => {
+      store.invitationConfigs = [];
+    });
+
+    const builderWorkspace = await getInvitationBuilderWorkspace(superadmin, eventId);
+    expect(builderWorkspace.invitationConfig.eventId).toBe(eventId);
+    expect(builderWorkspace.invitationConfig.blocks.heroCover.enabled).toBe(true);
+
+    builderWorkspace.invitationConfig.blocks.welcomeNote.enabled = false;
+    builderWorkspace.invitationConfig.blocks.eventDetails.order = 1;
+
+    await saveInvitationConfig(superadmin, eventId, builderWorkspace.invitationConfig);
+
+    const refreshedWorkspace = await getInvitationBuilderWorkspace(superadmin, eventId);
+    expect(refreshedWorkspace.invitationConfig.blocks.welcomeNote.enabled).toBe(false);
+    expect(refreshedWorkspace.invitationConfig.blocks.eventDetails.order).toBe(1);
+  });
+
+  it("exposes the active invitation config through guest portal and ticket snapshots", async () => {
+    const { superadmin, eventId } = await bootstrapEvent();
+    let workspace = await getEventWorkspace(superadmin, eventId);
+    const sessionId = workspace.sessions[0].id;
+
+    await createGuest(superadmin, eventId, {
+      name: "Preview Guest",
+      sessionId,
+      inviteStatus: "sent",
+      isActive: true,
+    });
+
+    workspace = await getEventWorkspace(superadmin, eventId);
+    const guestToken = workspace.guests.find((item) => item.name === "Preview Guest")?.activeQrToken;
+    expect(guestToken).toBeTruthy();
+
+    const portal = await getGuestPortal(guestToken!);
+    expect(portal.invitationConfig.globalStyle.preset).toBe("garden-keepsake");
+
+    await lockSeat(guestToken!, portal.seats[0].seatId);
+    await confirmSeat(guestToken!, portal.seats[0].seatId);
+
+    const ticket = await getGuestTicket(guestToken!);
+    expect(ticket.invitationConfig.blocks.ticketHero.page).toBe("ticket");
   });
 });

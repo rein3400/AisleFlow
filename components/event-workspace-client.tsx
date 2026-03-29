@@ -1,7 +1,8 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { AdminGuestManagement } from "@/components/admin-guest-management";
@@ -17,25 +18,11 @@ interface EventWorkspaceClientProps {
   workspace: EventWorkspace;
 }
 
-async function fileToDataUrl(file: File | null) {
-  if (!file) {
-    return "";
-  }
-
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Gagal membaca gambar."));
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.readAsDataURL(file);
-  });
-}
-
 export function EventWorkspaceClient({ workspace }: EventWorkspaceClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [metrics, setMetrics] = useState(workspace.metrics);
   const [eventNotice, setEventNotice] = useState<Notice>(null);
-  const [themeNotice, setThemeNotice] = useState<Notice>(null);
   const [sessionNotice, setSessionNotice] = useState<Notice>(null);
   const [eventForm, setEventForm] = useState({
     title: workspace.event.title,
@@ -45,12 +32,6 @@ export function EventWorkspaceClient({ workspace }: EventWorkspaceClientProps) {
     venueName: workspace.event.venueName,
     welcomeMessage: workspace.event.welcomeMessage,
     guestTargetTotal: workspace.event.guestTargetTotal,
-  });
-  const [themeForm, setThemeForm] = useState({
-    primaryColor: workspace.theme.primaryColor,
-    secondaryColor: workspace.theme.secondaryColor,
-    heroImageDataUrl: workspace.theme.heroImageDataUrl,
-    backgroundImageDataUrl: workspace.theme.backgroundImageDataUrl,
   });
   const [newSession, setNewSession] = useState({
     label: `Sesi ${workspace.sessions.length + 1}`,
@@ -78,12 +59,6 @@ export function EventWorkspaceClient({ workspace }: EventWorkspaceClientProps) {
       venueName: workspace.event.venueName,
       welcomeMessage: workspace.event.welcomeMessage,
       guestTargetTotal: workspace.event.guestTargetTotal,
-    });
-    setThemeForm({
-      primaryColor: workspace.theme.primaryColor,
-      secondaryColor: workspace.theme.secondaryColor,
-      heroImageDataUrl: workspace.theme.heroImageDataUrl,
-      backgroundImageDataUrl: workspace.theme.backgroundImageDataUrl,
     });
     setSessionDrafts(
       Object.fromEntries(
@@ -121,6 +96,8 @@ export function EventWorkspaceClient({ workspace }: EventWorkspaceClientProps) {
     () => metrics.sessions.filter((session) => session.isAlmostFull || session.isFull),
     [metrics.sessions],
   );
+  const invitationHeroImage =
+    workspace.invitationConfig.blocks.heroCover.content.heroImageDataUrl || workspace.theme.heroImageDataUrl;
 
   function refreshPage() {
     router.refresh();
@@ -154,55 +131,6 @@ export function EventWorkspaceClient({ workspace }: EventWorkspaceClientProps) {
       });
       refreshPage();
     });
-  }
-
-  async function saveTheme(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    startTransition(async () => {
-      setThemeNotice(null);
-      const response = await fetch(`/api/admin/events/${workspace.event.id}/theme`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(themeForm),
-      });
-      const payload = (await response.json()) as { ok?: boolean; error?: string };
-
-      if (!response.ok || !payload.ok) {
-        setThemeNotice({
-          kind: "error",
-          message: payload.error ?? "Gagal menyimpan tema.",
-        });
-        return;
-      }
-
-      setThemeNotice({
-        kind: "success",
-        message: "Tema event berhasil diperbarui.",
-      });
-      refreshPage();
-    });
-  }
-
-  async function changeThemeImage(
-    event: ChangeEvent<HTMLInputElement>,
-    key: "heroImageDataUrl" | "backgroundImageDataUrl",
-  ) {
-    const file = event.target.files?.[0] ?? null;
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      setThemeForm((current) => ({
-        ...current,
-        [key]: dataUrl,
-      }));
-    } catch (error) {
-      setThemeNotice({
-        kind: "error",
-        message: error instanceof Error ? error.message : "Gagal membaca gambar.",
-      });
-    }
   }
 
   async function handleNewSession(event: FormEvent<HTMLFormElement>) {
@@ -322,18 +250,18 @@ export function EventWorkspaceClient({ workspace }: EventWorkspaceClientProps) {
           <div
             className="theme-preview"
             style={{
-              background: `linear-gradient(135deg, ${themeForm.primaryColor}, ${themeForm.secondaryColor})`,
+              background: `linear-gradient(135deg, ${workspace.invitationConfig.globalStyle.primaryColor}, ${workspace.invitationConfig.globalStyle.secondaryColor})`,
             }}
           >
-            {themeForm.heroImageDataUrl ? (
-              <img alt="Tema event" src={themeForm.heroImageDataUrl} />
+            {invitationHeroImage ? (
+              <img alt="Tema event" src={invitationHeroImage} />
             ) : (
               <div className="stack admin-theme-placeholder">
                 <p className="eyebrow" style={{ color: "rgba(255,250,244,0.8)" }}>
-                  Theme Preview
+                  Invitation Preview
                 </p>
                 <h2 className="section-title" style={{ color: "#fffaf4" }}>
-                  White-label invitation experience
+                  Active invitation experience
                 </h2>
               </div>
             )}
@@ -539,54 +467,53 @@ export function EventWorkspaceClient({ workspace }: EventWorkspaceClientProps) {
         </div>
 
         <div className="stack">
-          <form className="panel stack" id="theme" onSubmit={saveTheme}>
+          <section className="panel stack" id="theme">
             <div>
-              <p className="eyebrow">White Label</p>
-              <h2 className="section-title">Tema event</h2>
+              <p className="eyebrow">Invitation Builder</p>
+              <h2 className="section-title">Undangan aktif event ini</h2>
             </div>
 
-            {themeNotice ? <div className={`status ${themeNotice.kind}`}>{themeNotice.message}</div> : null}
-
-            <div className="form-grid">
-              <div className="field">
-                <label htmlFor="theme-primary">Warna utama</label>
-                <input
-                  id="theme-primary"
-                  onChange={(event) => setThemeForm((current) => ({ ...current, primaryColor: event.target.value }))}
-                  type="color"
-                  value={themeForm.primaryColor}
-                />
+            <div className="admin-readonly-card stack">
+              <div className="pill-row">
+                <span className="pill">{workspace.invitationConfig.globalStyle.preset}</span>
+                <span className="pill">Button: {workspace.invitationConfig.globalStyle.buttonTone}</span>
+                <span className="pill">Card: {workspace.invitationConfig.globalStyle.cardTreatment}</span>
+                <span className="pill">Spacing: {workspace.invitationConfig.globalStyle.spacingDensity}</span>
               </div>
-              <div className="field">
-                <label htmlFor="theme-secondary">Warna sekunder</label>
-                <input
-                  id="theme-secondary"
-                  onChange={(event) => setThemeForm((current) => ({ ...current, secondaryColor: event.target.value }))}
-                  type="color"
-                  value={themeForm.secondaryColor}
-                />
+              <div className="admin-split-grid">
+                <div className="stack" style={{ gap: 6 }}>
+                  <span className="muted small">Warna aktif</span>
+                  <div className="pill-row">
+                    <span className="pill">{workspace.invitationConfig.globalStyle.primaryColor}</span>
+                    <span className="pill">{workspace.invitationConfig.globalStyle.secondaryColor}</span>
+                  </div>
+                </div>
+                <div className="stack" style={{ gap: 6 }}>
+                  <span className="muted small">Mencakup full guest flow</span>
+                  <div className="pill-row">
+                    <span className="pill">Undangan</span>
+                    <span className="pill">Seat Selection</span>
+                    <span className="pill">Ticket</span>
+                  </div>
+                </div>
               </div>
+              <p className="muted">
+                Semua kustomisasi visual sekarang dipusatkan di Invitation Builder agar preview, manual save, dan guest
+                routes memakai source of truth yang sama.
+              </p>
             </div>
 
-            <div className="form-grid">
-              <div className="field">
-                <label htmlFor="theme-hero-file">Foto utama</label>
-                <input id="theme-hero-file" onChange={(event) => void changeThemeImage(event, "heroImageDataUrl")} type="file" />
-              </div>
-              <div className="field">
-                <label htmlFor="theme-bg-file">Gambar latar</label>
-                <input
-                  id="theme-bg-file"
-                  onChange={(event) => void changeThemeImage(event, "backgroundImageDataUrl")}
-                  type="file"
-                />
-              </div>
+            <div className="inline-actions">
+              <Link className="button" href={`/admin/events/${workspace.event.id}/invitation`}>
+                Open Invitation Builder
+              </Link>
+              {workspace.guests[0]?.activeQrToken ? (
+                <Link className="button-ghost" href={`/guest/${workspace.guests[0].activeQrToken}`} target="_blank">
+                  Preview Guest Flow
+                </Link>
+              ) : null}
             </div>
-
-            <button className="button" disabled={isPending} type="submit">
-              {isPending ? "Menyimpan tema..." : "Simpan Tema"}
-            </button>
-          </form>
+          </section>
 
           <form className="panel stack" id="settings" onSubmit={saveEventSettings}>
             <div>
