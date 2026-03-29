@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import { AdminEventSwitcher } from "@/components/admin-event-switcher";
+import { LogoutButton } from "@/components/logout-button";
 import { requireAdminUser } from "@/lib/auth";
 import { listAdminEvents } from "@/lib/domain";
-import { LogoutButton } from "@/components/logout-button";
 
 export const dynamic = "force-dynamic";
 
@@ -18,23 +19,13 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
           <Link href="/admin">
             <strong>AisleFlow Admin</strong>
           </Link>
-          <span className="muted small">
-            {user.name} · {user.role === "superadmin" ? "Superadmin" : "Event Admin"}
-          </span>
+          <span className="muted small">{user.name} | {user.role === "superadmin" ? "Superadmin" : "Event Admin"}</span>
         </div>
 
         <LogoutButton />
       </div>
 
-      {events.length ? (
-        <div className="pill-row">
-          {events.map(({ event }) => (
-            <Link className="pill" href={`/admin/events/${event.id}`} key={event.id}>
-              {event.title}
-            </Link>
-          ))}
-        </div>
-      ) : null}
+      {events.length ? <AdminEventSwitcher events={events} /> : null}
 
       {children}
     </main>
